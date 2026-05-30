@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consolidation Breakout Screener</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0a0d0f;
+    --bg2: #0f1317;
+    --bg3: #151a20;
+    --border: #1e2830;
+    --accent: #00e5a0;
+    --accent2: #f7b731;
+    --red: #ff4757;
+    --text: #c8d8e8;
+    --muted: #4a6070;
+    --card: #111820;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #fff; }
+  .logo span { color: var(--accent); }
+
+  .badge {
+    background: rgba(0,229,160,0.1);
+    border: 1px solid rgba(0,229,160,0.3);
+    color: var(--accent);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+
+  /* Controls */
+  .controls {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    align-items: end;
+  }
+
+  .control-group label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .control-group select,
+  .control-group input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 9px 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .control-group select:focus,
+  .control-group input:focus { border-color: var(--accent); }
+
+  .scan-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+  }
+
+  .scan-btn:hover { background: #00ffb3; transform: translateY(-1px); }
+  .scan-btn:active { transform: translateY(0); }
+  .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .status-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .status-text span { color: var(--accent); }
+
+  .progress-bar {
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .progress-bar.active { display: block; }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    width: 0%;
+    transition: width 0.3s;
+    border-radius: 2px;
+  }
+
+  /* Results grid */
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+
+  /* Coin card */
+  .coin-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+    animation: fadeIn 0.3s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .coin-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,229,160,0.08);
+  }
+
+  .coin-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .coin-card:hover::before { opacity: 1; }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .coin-name {
+    font-size: 17px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+
+  .coin-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .tag-strong { background: rgba(0,229,160,0.15); color: var(--accent); border: 1px solid rgba(0,229,160,0.3); }
+  .tag-good   { background: rgba(247,183,49,0.12); color: var(--accent2); border: 1px solid rgba(247,183,49,0.3); }
+  .tag-watch  { background: rgba(200,216,232,0.08); color: var(--text); border: 1px solid var(--border); }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .metric {
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .metric-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    display: block;
+  }
+
+  .metric-val.up   { color: var(--accent); }
+  .metric-val.down { color: var(--red); }
+
+  .metric-lbl {
+    font-size: 9px;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    display: block;
+    margin-top: 2px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Mini chart bars */
+  .mini-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 36px;
+    margin-bottom: 10px;
+  }
+
+  .bar {
+    flex: 1;
+    border-radius: 2px 2px 0 0;
+    transition: height 0.3s;
+  }
+
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .score-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    min-width: 90px;
+  }
+
+  .score-track {
+    flex: 1;
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .score-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .score-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    min-width: 24px;
+    text-align: right;
+  }
+
+  /* Empty / loading state */
+  .empty-state {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 14px; }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(0,229,160,0.3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Disclaimer */
+  .disclaimer {
+    margin-top: 20px;
+    padding: 12px 16px;
+    background: rgba(255,71,87,0.07);
+    border: 1px solid rgba(255,71,87,0.2);
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    line-height: 1.6;
+  }
+
+  .disclaimer strong { color: var(--red); }
+
+  /* Responsive */
+  @media (max-width: 500px) {
+    .controls { grid-template-columns: 1fr 1fr; }
+    .results-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">📡</div>
+      <h1>BREAKOUT<span>SCAN</span></h1>
+    </div>
+    <div class="badge">1D TIMEFRAME • BINANCE</div>
+  </header>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>QUOTE ASSET</label>
+      <select id="quote">
+        <option value="USDT">USDT</option>
+        <option value="BTC">BTC</option>
+        <option value="ETH">ETH</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>MIN VOLUME (24H)</label>
+      <select id="minVol">
+        <option value="1000000">$1M+</option>
+        <option value="5000000" selected>$5M+</option>
+        <option value="10000000">$10M+</option>
+        <option value="50000000">$50M+</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>CONSOLIDATION DAYS</label>
+      <select id="consol">
+        <option value="5">5 days</option>
+        <option value="7" selected>7 days</option>
+        <option value="10">10 days</option>
+        <option value="14">14 days</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>MIN BREAKOUT %</label>
+      <select id="breakoutPct">
+        <option value="3">3%+</option>
+        <option value="5" selected>5%+</option>
+        <option value="8">8%+</option>
+        <option value="10">10%+</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>MAX RESULTS</label>
+      <select id="maxResults">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="30">30</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>SCAN</label>
+      <button class="scan-btn" id="scanBtn" onclick="startScan()">
+        <span>▶</span> START SCAN
+      </button>
+    </div>
+  </div>
+
+  <!-- Auto Refresh + Alert Row -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+    <button id="autoBtn" onclick="toggleAutoRefresh()"
+      style="display:flex;align-items:center;gap:6px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s">
+      ⏱ AUTO REFRESH: OFF
+    </button>
+    <button id="alertBtn" onclick="requestNotifPermission()"
+      style="display:flex;align-items:center;gap:6px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s">
+      🔔 ENABLE ALERTS
+    </button>
+    <div id="nextRefreshEl" style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)"></div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-text" id="statusText">Ready to scan — press START SCAN</div>
+    <div class="status-text" id="countText"></div>
+  </div>
+
+  <div class="progress-bar" id="progressBar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <div class="results-grid" id="results">
+    <div class="empty-state">
+      <div class="icon">🔍</div>
+      <p>Press START SCAN to find consolidation breakout coins</p>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    <strong>⚠ DISCLAIMER:</strong> Yeh screener sirf educational purposes ke liye hai. Crypto trading mein bohot zyada risk hota hai. Koi bhi trade karne se pehle apni khud ki research karein. Yeh financial advice nahi hai.
+  </div>
+
+</div>
+
+<script>
+const BASE = 'https://api.binance.com/api/v3';
+
+// ── Retry-aware fetch ─────────────────────────────────────────────
+async function fetchJSON(url, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const r = await fetch(url);
+      if (r.status === 429) {          // rate-limited → wait & retry
+        await sleep(1500 * (i + 1));
+        continue;
+      }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await sleep(600);
+    }
+  }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ── Batch klines — up to 20 symbols in parallel ──────────────────
+async function batchKlines(symbols, limit) {
+  const results = {};
+  // Process in chunks of 20 parallel requests
+  const CHUNK = 20;
+  for (let i = 0; i < symbols.length; i += CHUNK) {
+    const chunk = symbols.slice(i, i + CHUNK);
+    const promises = chunk.map(async sym => {
+      try {
+        const data = await fetchJSON(`${BASE}/klines?symbol=${sym}&interval=1d&limit=${limit}`);
+        results[sym] = data.map(k => ({
+          open:  parseFloat(k[1]),
+          high:  parseFloat(k[2]),
+          low:   parseFloat(k[3]),
+          close: parseFloat(k[4]),
+          vol:   parseFloat(k[5]),
+        }));
+      } catch(e) { results[sym] = null; }
+    });
+    await Promise.all(promises);
+    // Small pause between chunks to respect rate limits
+    if (i + CHUNK < symbols.length) await sleep(300);
+  }
+  return results;
+}
+
+// ── Get ALL USDT symbols from Binance ────────────────────────────
+async function getSymbols(quote) {
+  const data = await fetchJSON(`${BASE}/exchangeInfo`);
+  return data.symbols
+    .filter(s => s.quoteAsset === quote && s.status === 'TRADING' && s.isSpotTradingAllowed)
+    .map(s => s.symbol);
+}
+
+// ── Pattern analysis ─────────────────────────────────────────────
+function analyze(candles, consolDays, breakoutPct) {
+  if (!candles || candles.length < consolDays + 3) return null;
+
+  const recent        = candles.slice(-consolDays - 3);
+  const consolCandles = recent.slice(0, consolDays);
+  const lastCandles   = recent.slice(consolDays);
+
+  const consolHigh  = Math.max(...consolCandles.map(c => c.high));
+  const consolLow   = Math.min(...consolCandles.map(c => c.low));
+  const consolRange = ((consolHigh - consolLow) / consolLow) * 100;
+  if (consolRange > 8) return null;
+
+  const lastClose         = lastCandles[lastCandles.length - 1].close;
+  const breakoutMagnitude = ((lastClose - consolHigh) / consolHigh) * 100;
+  if (breakoutMagnitude < breakoutPct) return null;
+
+  const avgVol   = consolCandles.reduce((s, c) => s + c.vol, 0) / consolCandles.length;
+  const lastVol  = lastCandles[lastCandles.length - 1].vol;
+  const volSpike = lastVol / avgVol;
+  if (volSpike < 1.2) return null;
+
+  const recentCloses = lastCandles.map(c => c.close);
+  let parabolic = recentCloses.length > 1;
+  for (let i = 1; i < recentCloses.length; i++) {
+    if (recentCloses[i] <= recentCloses[i - 1]) { parabolic = false; break; }
+  }
+
+  const score = Math.min(100, Math.round(
+    (breakoutMagnitude / 20 * 40) +
+    (Math.min(volSpike, 5) / 5 * 30) +
+    (parabolic ? 20 : 0) +
+    ((8 - consolRange) / 8 * 10)
+  ));
+
+  return {
+    consolRange: consolRange.toFixed(1),
+    breakout:    breakoutMagnitude.toFixed(1),
+    volSpike:    volSpike.toFixed(1),
+    parabolic, score, lastClose,
+    recentPrices: candles.slice(-8).map(c => c.close),
+  };
+}
+
+// ── UI helpers ───────────────────────────────────────────────────
+function tagLabel(score, parabolic) {
+  if (score >= 70 && parabolic) return ['STRONG BREAKOUT', 'tag-strong'];
+  if (score >= 50)               return ['GOOD SETUP',      'tag-good'];
+  return ['WATCH', 'tag-watch'];
+}
+
+function miniChartHTML(prices) {
+  const mn = Math.min(...prices), mx = Math.max(...prices);
+  const range = mx - mn || 1;
+  return prices.map((p, i) => {
+    const h     = Math.max(4, Math.round(((p - mn) / range) * 100 * 0.32));
+    const isLast = i === prices.length - 1;
+    const color  = isLast ? 'var(--accent)'
+                 : (p >= prices[Math.max(0, i-1)] ? 'rgba(0,229,160,0.35)' : 'rgba(255,71,87,0.3)');
+    return `<div class="bar" style="height:${h}px;background:${color}"></div>`;
+  }).join('');
+}
+
+function cardHTML(symbol, result, idx) {
+  const [tagText, tagClass] = tagLabel(result.score, result.parabolic);
+  const baseName = symbol.replace(/USDT|BTC|ETH$/, '');
+  return `
+  <div class="coin-card" style="animation-delay:${idx*50}ms"
+       onclick="window.open('https://www.binance.com/en/trade/${symbol}','_blank')">
+    <div class="card-header">
+      <div class="coin-name">${baseName}<span style="color:var(--muted);font-size:12px;font-weight:400">/USDT</span></div>
+      <span class="coin-tag ${tagClass}">${tagText}</span>
+    </div>
+    <div class="mini-chart">${miniChartHTML(result.recentPrices)}</div>
+    <div class="metrics">
+      <div class="metric"><span class="metric-val up">+${result.breakout}%</span><span class="metric-lbl">BREAKOUT</span></div>
+      <div class="metric"><span class="metric-val">${result.volSpike}x</span><span class="metric-lbl">VOL SPIKE</span></div>
+      <div class="metric"><span class="metric-val">${result.consolRange}%</span><span class="metric-lbl">CONSOL RANGE</span></div>
+    </div>
+    <div class="score-row">
+      <span class="score-label">PATTERN SCORE</span>
+      <div class="score-track"><div class="score-fill" style="width:${result.score}%"></div></div>
+      <span class="score-val">${result.score}</span>
+    </div>
+    ${result.parabolic ? '<div style="margin-top:8px;font-size:10px;color:var(--accent);font-family:Space Mono,monospace">🚀 PARABOLIC MOVE DETECTED</div>' : ''}
+  </div>`;
+}
+
+// ── Main scan ────────────────────────────────────────────────────
+let scanning = false;
+
+async function startScan() {
+  if (scanning) return;
+  scanning = true;
+
+  const btn          = document.getElementById('scanBtn');
+  const status       = document.getElementById('statusText');
+  const countEl      = document.getElementById('countText');
+  const resultDiv    = document.getElementById('results');
+  const progressBar  = document.getElementById('progressBar');
+  const progressFill = document.getElementById('progressFill');
+
+  const quote      = document.getElementById('quote').value;
+  const minVol     = parseInt(document.getElementById('minVol').value);
+  const consolDays = parseInt(document.getElementById('consol').value);
+  const breakPct   = parseFloat(document.getElementById('breakoutPct').value);
+  const maxRes     = parseInt(document.getElementById('maxResults').value);
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> SCANNING...';
+  resultDiv.innerHTML = '';
+  progressBar.classList.add('active');
+  progressFill.style.width = '0%';
+
+  try {
+    // Step 1 — get ALL symbols
+    status.innerHTML = '⏳ Fetching all Binance symbols...';
+    let symbols = await getSymbols(quote);
+
+    // Step 2 — volume filter using single ticker call (no per-coin requests)
+    status.innerHTML = `⏳ Checking 24h volume for ${symbols.length} coins...`;
+    progressFill.style.width = '10%';
+
+    const ticker = await fetchJSON(`${BASE}/ticker/24hr`);
+    const volMap = {};
+    ticker.forEach(t => { volMap[t.symbol] = parseFloat(t.quoteVolume); });
+
+    // Filter by minimum volume — no random shuffle, scan ALL
+    symbols = symbols
+      .filter(s => (volMap[s] || 0) >= minVol)
+      .sort((a, b) => (volMap[b] || 0) - (volMap[a] || 0)); // sort by volume desc
+
+    countEl.innerHTML = `Total coins to scan: <span>${symbols.length}</span>`;
+    status.innerHTML  = `📡 Scanning <span>${symbols.length}</span> coins in batches...`;
+    progressFill.style.width = '15%';
+
+    // Step 3 — fetch klines in batches of 20 parallel
+    const klineLimit = consolDays + 12;
+    const BATCH = 20;
+    const found = [];
+    let processed = 0;
+
+    for (let i = 0; i < symbols.length; i += BATCH) {
+      const batch      = symbols.slice(i, i + BATCH);
+      const batchData  = await batchKlines(batch, klineLimit);
+
+      for (const sym of batch) {
+        const candles = batchData[sym];
+        const result  = analyze(candles, consolDays, breakPct);
+        if (result) {
+          found.push({ sym, result });
+          found.sort((a, b) => b.result.score - a.result.score);
+          resultDiv.innerHTML = found.slice(0, maxRes).map((f, idx) => cardHTML(f.sym, f.result, idx)).join('');
+        }
+        processed++;
+      }
+
+      const pct = Math.round(15 + (processed / symbols.length) * 85);
+      progressFill.style.width = pct + '%';
+      status.innerHTML  = `📡 Scanning... <span>${processed}/${symbols.length}</span> coins checked`;
+      countEl.innerHTML = `Found: <span>${found.length}</span> | Scanned: <span>${processed}</span>/${symbols.length}`;
+
+      // Brief pause between batches
+      if (i + BATCH < symbols.length) await sleep(250);
+    }
+
+    if (found.length === 0) {
+      resultDiv.innerHTML = `<div class="empty-state"><div class="icon">😶</div><p>Koi coin nahi mila — filters thoda loose karein aur dobara try karein</p></div>`;
+    }
+
+    progressFill.style.width = '100%';
+    status.innerHTML  = `✅ Scan complete — <span>${processed}</span> coins checked`;
+    countEl.innerHTML = `✅ Found: <span>${found.length}</span> matching coins`;
+
+  } catch (err) {
+    status.innerHTML  = `<span style="color:var(--red)">❌ Error: ${err.message}</span>`;
+    resultDiv.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>API error — please try again in a moment.</p></div>`;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span>▶</span> START SCAN';
+  scanning = false;
+}
+
+// ── Auto Refresh System ───────────────────────────────────────────
+let autoRefreshOn   = false;
+let autoRefreshTimer = null;
+let countdownTimer   = null;
+let secondsLeft      = 60;
+let prevFoundSyms    = new Set();
+
+function toggleAutoRefresh() {
+  autoRefreshOn = !autoRefreshOn;
+  const btn = document.getElementById('autoBtn');
+  const nxt = document.getElementById('nextRefreshEl');
+
+  if (autoRefreshOn) {
+    btn.style.background = 'rgba(0,229,160,0.15)';
+    btn.style.color       = 'var(--accent)';
+    btn.style.borderColor = 'rgba(0,229,160,0.4)';
+    btn.textContent       = '⏱ AUTO REFRESH: ON';
+    startCountdown();
+  } else {
+    btn.style.background  = 'var(--bg3)';
+    btn.style.color       = 'var(--text)';
+    btn.style.borderColor = 'var(--border)';
+    btn.textContent       = '⏱ AUTO REFRESH: OFF';
+    clearInterval(autoRefreshTimer);
+    clearInterval(countdownTimer);
+    nxt.textContent = '';
+  }
+}
+
+function startCountdown() {
+  secondsLeft = 60;
+  clearInterval(countdownTimer);
+  clearInterval(autoRefreshTimer);
+
+  const nxt = document.getElementById('nextRefreshEl');
+  nxt.textContent = `⏳ Next refresh: ${secondsLeft}s`;
+
+  countdownTimer = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft <= 0) {
+      nxt.textContent = '🔄 Refreshing...';
+    } else {
+      nxt.textContent = `⏳ Next refresh: ${secondsLeft}s`;
+    }
+  }, 1000);
+
+  autoRefreshTimer = setInterval(async () => {
+    if (!scanning) {
+      clearInterval(countdownTimer);
+      await runAutoScan();
+      if (autoRefreshOn) startCountdown();
+    }
+  }, 60 * 1000);
+}
+
+async function runAutoScan() {
+  const quote      = document.getElementById('quote').value;
+  const minVol     = parseInt(document.getElementById('minVol').value);
+  const consolDays = parseInt(document.getElementById('consol').value);
+  const breakPct   = parseFloat(document.getElementById('breakoutPct').value);
+  const maxRes     = parseInt(document.getElementById('maxResults').value);
+  const status     = document.getElementById('statusText');
+  const countEl    = document.getElementById('countText');
+  const resultDiv  = document.getElementById('results');
+  const progressBar  = document.getElementById('progressBar');
+  const progressFill = document.getElementById('progressFill');
+
+  scanning = true;
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> AUTO SCAN...';
+  progressBar.classList.add('active');
+  progressFill.style.width = '0%';
+
+  try {
+    status.innerHTML = '🔄 Auto refresh chal raha hai...';
+    let symbols = await getSymbols(quote);
+
+    const ticker = await fetchJSON(`${BASE}/ticker/24hr`);
+    const volMap = {};
+    ticker.forEach(t => { volMap[t.symbol] = parseFloat(t.quoteVolume); });
+
+    symbols = symbols
+      .filter(s => (volMap[s] || 0) >= minVol)
+      .sort((a, b) => (volMap[b] || 0) - (volMap[a] || 0));
+
+    const klineLimit = consolDays + 12;
+    const BATCH = 20;
+    const found = [];
+    let processed = 0;
+
+    for (let i = 0; i < symbols.length; i += BATCH) {
+      const batch     = symbols.slice(i, i + BATCH);
+      const batchData = await batchKlines(batch, klineLimit);
+
+      for (const sym of batch) {
+        const candles = batchData[sym];
+        const result  = analyze(candles, consolDays, breakPct);
+        if (result) {
+          found.push({ sym, result });
+          found.sort((a, b) => b.result.score - a.result.score);
+          resultDiv.innerHTML = found.slice(0, maxRes).map((f, idx) => cardHTML(f.sym, f.result, idx)).join('');
+        }
+        processed++;
+      }
+
+      const pct = Math.round(15 + (processed / symbols.length) * 85);
+      progressFill.style.width = pct + '%';
+      status.innerHTML  = `🔄 Auto scan... <span>${processed}/${symbols.length}</span>`;
+      countEl.innerHTML = `Found: <span>${found.length}</span>`;
+      if (i + BATCH < symbols.length) await sleep(250);
+    }
+
+    progressFill.style.width = '100%';
+    const now = new Date().toLocaleTimeString();
+    status.innerHTML  = `✅ Auto refresh done — <span>${now}</span>`;
+    countEl.innerHTML = `Found: <span>${found.length}</span> coins`;
+
+    // Check for NEW coins and fire alerts
+    checkAndAlert(found);
+
+  } catch (err) {
+    status.innerHTML = `<span style="color:var(--red)">Auto scan error: ${err.message}</span>`;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span>▶</span> START SCAN';
+  scanning = false;
+}
+
+// ── Notification Alert System ─────────────────────────────────────
+let notifAllowed = false;
+
+async function requestNotifPermission() {
+  const btn = document.getElementById('alertBtn');
+
+  if (!('Notification' in window)) {
+    btn.textContent = '❌ Browser support nahi';
+    btn.style.color = 'var(--red)';
+    alert('Yaar tumhara browser notifications support nahi karta. Chrome ya Samsung Browser use karo.');
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    notifAllowed = true;
+    btn.style.background  = 'rgba(0,229,160,0.15)';
+    btn.style.color       = 'var(--accent)';
+    btn.style.borderColor = 'rgba(0,229,160,0.4)';
+    btn.textContent       = '🔔 ALERTS: ON ✓';
+    showTestNotif();
+    return;
+  }
+
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    notifAllowed = true;
+    btn.style.background  = 'rgba(0,229,160,0.15)';
+    btn.style.color       = 'var(--accent)';
+    btn.style.borderColor = 'rgba(0,229,160,0.4)';
+    btn.textContent       = '🔔 ALERTS: ON ✓';
+    showTestNotif();
+  } else {
+    btn.textContent = '🔕 Blocked — Settings se allow karo';
+    btn.style.color = 'var(--red)';
+  }
+}
+
+function showTestNotif() {
+  if (!notifAllowed) return;
+  new Notification('🚀 BreakoutScan Alert ON!', {
+    body: 'Jab naya coin mile, yahan notification aayegi!',
+    icon: 'https://www.binance.com/favicon.ico',
+    badge: 'https://www.binance.com/favicon.ico',
+  });
+}
+
+function fireAlert(sym, score, breakout, parabolic) {
+  if (!notifAllowed) return;
+
+  const title = parabolic
+    ? `🚀 PARABOLIC! ${sym} +${breakout}%`
+    : `💥 BREAKOUT! ${sym} +${breakout}%`;
+  const body  = `Score: ${score}/100 | Breakout: +${breakout}%${parabolic ? ' | 🚀 Parabolic Move!' : ''}
+Binance pe check karo!`;
+
+  const notif = new Notification(title, {
+    body,
+    icon:  'https://www.binance.com/favicon.ico',
+    badge: 'https://www.binance.com/favicon.ico',
+    tag:   sym,  // same coin ka duplicate nahi aayega
+    requireInteraction: true,
+  });
+
+  // Click pe Binance chart khule
+  notif.onclick = () => {
+    window.open(`https://www.binance.com/en/trade/${sym}`, '_blank');
+    notif.close();
+  };
+}
+
+function checkAndAlert(found) {
+  if (!notifAllowed) return;
+
+  found.forEach(({ sym, result }) => {
+    // Sirf NEW coins pe alert — jo pehle se list mein nahi the
+    if (!prevFoundSyms.has(sym)) {
+      fireAlert(sym, result.score, result.breakout, result.parabolic);
+    }
+  });
+
+  // Update previous set
+  prevFoundSyms = new Set(found.map(f => f.sym));
+}
+</script>
+</body>
+</html>
